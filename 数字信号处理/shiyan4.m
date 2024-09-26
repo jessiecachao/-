@@ -1,0 +1,15 @@
+wp1=0.3*pi;wp2=0.7*pi;
+ws1=0.4*pi;ws2=0.6*pi;
+tr_width=ws1-wp1;
+M=ceil(6.6*pi/tr_width);
+k=0:M-1;
+wc1=(wp1+ws1)/2;wc2=(wp2+ws2)/2;
+wc=[wc1,wc2];
+h=fir1(M-1,wc/pi,"stop");
+[H,w]=freqz(h,1);
+subplot(211);
+stem(h);
+title('带阻滤波器的脉冲响应');xlabel('k');ylabel('h');
+subplot(212);
+plot(w/pi,20*log10(abs(H)));grid on;
+title('带阻滤波器的幅频响应');xlabel('w/pi');ylabel('H');

@@ -1,0 +1,14 @@
+窗函数M
+FFT长度N 441000点 二维数组？
+谱分析
+dataw=主瓣的一半
+一般不用blackman窗 太胖了
+dataf=4FS/M三角窗
+8pi/M=dataw=2pi/fs
+N>=M
+添零
+length(LOC3)多少个音程
+包络下标？？
+yuputu?
+横坐标zhenhao
+纵坐标f？
