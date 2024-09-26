@@ -1,0 +1,490 @@
+C51 COMPILER V9.00   MAIN                                                                  07/05/2024 11:10:05 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE usr\main.c LARGE BROWSE INCDIR(.\usr) DEBUG OBJECTEXTEND PRINT(.\Listings\m
+                    -ain.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <REG52.H>
+   2          #include <stdio.h>
+   3          #include <math.h>
+   4          #include <stdlib.h>
+   5          #include <intrins.h>
+   6          #include <global.h>
+   7          #include <hd7279.h>
+   8          #include <ds18b20.h>
+   9          #include <motor.h>
+  10          #include <ee24c16.h>
+  11          #include <pid.h>
+  12           
+  13          int menu_num=0,layer=1,motorNow = 0,run_num=0,con_num=0;
+  14          unsigned char keyvalue=0xff;
+  15          unsigned char LED[8]={0xa9,0xf1,0x01,0x00,0x44,0x00,0x00,0x00};
+  16          float kp=4.0,ki=0.2,kd=0.0;
+  17          unsigned int pwm=50;
+  18           
+  19          void main(void){
+  20   1              unsigned char tP[8]={0xa9,0xf1,0x01,0x00,0x44,0x00,0x00,0x00};
+  21   1        unsigned char run[8]={0x21,0x2c,0x25,0x01,0x79,0x00,0x00,0x00};
+  22   1        unsigned char Con[8]={0xb8,0x2d,0x25,0x01,0x5d,0x00,0x00,0x00};
+  23   1        unsigned char PA[8]={0xf1,0xf5,0x01,0x00,0xc5,0x00,0x00,0x00};
+  24   1              unsigned char PID[8]={0xf1,0x44,0x6d,0x01,0x9d,0x00,0x00,0x00};
+  25   1              unsigned char run_all[8]={0x00,0x00,0x00,0x00,0x21,0x01,0x00,0x00};
+  26   1              unsigned char tempdparray[10]={0xfe,0x46,0x7b,0x5f,0xC7,0x9f,0xBf,0x56,0xFf,0xDf};//带小数点的数字
+  27   1              unsigned char temparray[10]={0xFC,0x44,0x79,0x5D,0xC5,0x9D,0xBD,0x54,0xFD,0xDD}; //不带小数点
+  28   1              unsigned char pass_in[3]={0,0,0},pass[3]={1,1,1},wrong=1;
+  29   1              unsigned char dat1;
+  30   1              unsigned char key,i;
+  31   1              int run_menu_num=-1,pa_menu_num=-1;
+  32   1              unsigned int pw_now;
+  33   1              unsigned int t_down,t_up;
+  34   1              
+  35   1              init_hd7279();
+  36   1              init_24c16();
+  37   1              init_ds1820();
+  38   1              motor = 0;
+  39   1              save_all_data(); //只让它执行一次 存EEPROM数据 以后要注释掉
+  40   1              
+  41   1              while(1){
+  42   2                      display();              
+  43   2                      key = readKey();
+  44   2                      if(layer==2 && menu_num==0)   //第一个菜单的第二层
+  45   2                      {
+  46   3                              EA = 0;
+  47   3                              show_temperature();   
+  48   3                      }
+  49   2                      else if(layer==2 && menu_num==2) //第二个菜单的第二层
+  50   2                      {     //占空比
+  51   3                              EA = 1;
+  52   3                              motor = 1;
+  53   3                              temp_now = show_temperature();
+  54   3                              //PID控制
+C51 COMPILER V9.00   MAIN                                                                  07/05/2024 11:10:05 PAGE 2   
+
+  55   3                              if(temp_now>t_down && temp_now<t_up){   
+  56   4                                      pw_now=(temp_now-t_down)/(t_up-t_down)*50+50;    //显示当前占空比
+  57   4                                      LED[1] = 0x00;
+  58   4                                      LED[2] = temparray[(pw_now%100)/10];
+  59   4                                      LED[3] = temparray[(pw_now%100)%10];
+  60   4                              }
+  61   3                              else if(temp_now>=t_up){//100
+  62   4                                      LED[1] = 0x44;
+  63   4                                      LED[2] = 0xfc;
+  64   4                                      LED[3] = 0xfc;
+  65   4                              }
+  66   3                              else{
+  67   4                                      LED[1] = 0x00;
+  68   4                                      LED[2] = 0x00;
+  69   4                                      LED[3] = 0xfc;
+  70   4                              }
+  71   3                              LED[0] = 0x00;
+  72   3                      }
+  73   2                      else if(layer==2 && menu_num==4){     //第五个菜单的第二层
+  74   3                              
+  75   3                              EA=1;
+  76   3                              pwm = pid_getpwm(pwm,show_temperature(),(float)readbyte_24c16(12),kp,ki,kd);     //....................
+             -.................................................
+  77   3                              LED[0]=0x00;
+  78   3                              LED[1]=0x00;
+  79   3                              LED[2]=temparray[(pwm%100)/10]; //10
+  80   3                              LED[3]=temparray[(pwm%100)%10]; //1
+  81   3                              //motor=1;
+  82   3                              if(motorNow<(unsigned int)(pwm)){
+  83   4                                      motor = 1;
+  84   4                                      P2 = 0x00;//绿灯亮
+  85   4                              }
+  86   3                              else{
+  87   4                                motor = 0;
+  88   4                                      P2 = 0x02;
+  89   4                              }
+  90   3                      }
+  91   2                      
+  92   2                      else if(layer==3 && menu_num==1){    //run    第二个菜单的第三层
+  93   3                              EA = 1;//开启中断 
+  94   3                              if(motorNow<(unsigned int)(dat1)){
+  95   4                                      motor = 1;
+  96   4                                      P2 = 0x00;//绿灯亮
+  97   4                              }
+  98   3                              else{
+  99   4                                motor = 0;
+ 100   4                                      P2 = 0x02;
+ 101   4                              }
+ 102   3                      }
+ 103   2       
+ 104   2                      if(key==0xff){
+ 105   3                              keyvalue = 0xff;
+ 106   3                      }
+ 107   2                      else{
+ 108   3                              if(keyvalue==0xff){
+ 109   4                                      keyvalue = key;
+ 110   4                                      if(layer==1){   //第一层
+ 111   5                                              menu_switch();
+ 112   5                                              switch(menu_num){
+ 113   6                                                      case 0:for(i=0;i<8;i++)LED[i]=tP[i];break;
+ 114   6                                                      case 1:for(i=0;i<8;i++)LED[i]=run[i];break;
+ 115   6                                                      case 2:for(i=0;i<8;i++)LED[i]=Con[i];break;
+C51 COMPILER V9.00   MAIN                                                                  07/05/2024 11:10:05 PAGE 3   
+
+ 116   6                                                      case 3:for(i=0;i<8;i++)LED[i]=PA[i];break;
+ 117   6                                                      case 4:for(i=0;i<8;i++)LED[i]=PID[i];break;
+ 118   6                                              }
+ 119   5                                      }
+ 120   4                                      else if(layer == 2){     //第二层
+ 121   5                                              switch(menu_num){
+ 122   6                                                      case 0:
+ 123   6                                                      {
+ 124   7                                                              if(keyvalue==0x39){
+ 125   8                                                                      layer = 1;
+ 126   8                                                                      keyvalue=0xff;
+ 127   8                                                              }
+ 128   7                                                              break;
+ 129   7                                                      }
+ 130   6                                                      case 1:
+ 131   6                                                      {
+ 132   7                                                              run_menu_num=run_menu_switch(run_menu_num);
+ 133   7                                                              for(i=0;i<8;i++)LED[i]=run_all[i];
+ 134   7                                                              switch(run_menu_num){
+ 135   8                                                                      case 0:{
+ 136   9                                                                              LED[7] = 0x44;
+ 137   9                                                                              dat1=readbyte_24c16(0);
+ 138   9                                                                              break;
+ 139   9                                                                      }
+ 140   8                                                                      case 1:{
+ 141   9                                                                              LED[7] = 0x79;
+ 142   9                                                                              dat1=readbyte_24c16(1);
+ 143   9                                                                              break;
+ 144   9                                                                      }
+ 145   8                                                                      case 2:{
+ 146   9                                                                              LED[7] = 0x5d;
+ 147   9                                                                              dat1=readbyte_24c16(2);
+ 148   9                                                                              break;
+ 149   9                                                                      }
+ 150   8                                                                      case 3:{
+ 151   9                                                                              LED[7] = 0xc5;
+ 152   9                                                                              dat1=readbyte_24c16(3);
+ 153   9                                                                              break;
+ 154   9                                                                      }
+ 155   8                                                                      case 4:{
+ 156   9                                                                              LED[7] = 0x9d;
+ 157   9                                                                              dat1=readbyte_24c16(4);
+ 158   9                                                                              break;
+ 159   9                                                                      }
+ 160   8                                                              }
+ 161   7                                                              if((dat1/100)!=0)LED[1]=temparray[dat1/100];
+ 162   7                                                              else LED[1]=0x00;
+ 163   7                                                              LED[2]=temparray[(dat1%100)/10];
+ 164   7                                                              LED[3]=temparray[(dat1%100)%10];
+ 165   7                                                              break;
+ 166   7                                                      }
+ 167   6                                                      case 2:
+ 168   6                                                      {
+ 169   7                                                       // motor=1;                //........................................................
+ 170   7                                                              t_down = readbyte_24c16(10);
+ 171   7                                                              t_up =readbyte_24c16(11);
+ 172   7                                                              if(keyvalue==0x39){
+ 173   8                                                                      layer = 1;
+ 174   8                                                                      keyvalue=0xff;
+ 175   8                                                              }
+ 176   7                                                              break;
+ 177   7                                                      }
+C51 COMPILER V9.00   MAIN                                                                  07/05/2024 11:10:05 PAGE 4   
+
+ 178   6                                                      case 3://改密码的地方
+ 179   6                                                      {
+ 180   7                                                              if(wrong == 1){
+ 181   8                                                              LED[0]=0x01;LED[1]=0x01;LED[2]=0x01;LED[3]=0x00;LED[4]=0xf1;LED[5]=0xf5;LED[6]=0x9d;LED[7]=0x00;
+ 182   8                                                                              switch(keyvalue)
+ 183   8                                                                              {       
+ 184   9                                                                                      case 0x3B:
+ 185   9                                                                                              pass_in[0]=(pass_in[0]+1)%3;break;
+ 186   9                                                                                      case 0x3A:
+ 187   9                                                                                              pass_in[1]=(pass_in[1]+1)%3;;break;     
+ 188   9                                                                                      case 0x39:
+ 189   9                                                                                              pass_in[2]=(pass_in[2]+1)%3;break;
+ 190   9                                                                                      case 0x38:
+ 191   9                                                                                      {
+ 192  10                                                                                              if(pass_in[0]==pass[0]&&pass_in[1]==pass[1]&&pass_in[2]==pass[2])
+ 193  10                                                                                                      {
+ 194  11                                                                                                              wrong=0;//密码正确
+ 195  11                                                                                                              menu_num=3;layer = 2;
+ 196  11                                                                                                      }
+ 197  10                                                                                                      break;
+ 198  10                                                                                      }
+ 199   9                                                                                               
+ 200   9                                                                              }               
+ 201   8                                                                      LED[0]=temparray[(int)pass_in[0]];LED[1]=temparray[(int)pass_in[1]];LED[2]=temparray[(int)pass_in[
+             -2]];
+ 202   8                                                                              //break;        
+ 203   8                                                                      }
+ 204   7                                               else if(wrong == 0){                                                                                                                                                                                                                                                                       
+             -                                                                                                                                                                                                      
+ 205   8                                                              pa_menu_num=pa_menu_switch(pa_menu_num);
+ 206   8                                                              switch(pa_menu_num){
+ 207   9                                                                      case 0:LED[0]=0x00;LED[1]=0x21;LED[2]=0x2c;LED[3]=0x25;LED[4]=0xf1;LED[5]=0xf5;LED[6]=0x01;LED[7]=
+             -0x00;break;//run
+ 208   9                                                                      case 1:LED[0]=0x00;LED[1]=0xb8;LED[2]=0x2d;LED[3]=0x25;LED[4]=0xf1;LED[5]=0xf5;LED[6]=0x01;LED[7]=
+             -0x00;break;//con
+ 209   9                                                                      case 2:LED[0]=0x00;LED[1]=0xf1;LED[2]=0x44;LED[3]=0x6d;LED[4]=0xf1;LED[5]=0xf5;LED[6]=0x01;LED[7]=
+             -0x00;break;//pid
+ 210   9                                                              }
+ 211   8                                                      }                                           
+ 212   7                                                              break;
+ 213   7                                                      }
+ 214   6                                                      case 4:{
+ 215   7                                                              init_motor();
+ 216   7                                                              if(keyvalue==0x39){
+ 217   8                                                                      layer = 1;
+ 218   8                                                                      keyvalue=0xff;
+ 219   8                                                              }
+ 220   7                                                              break;
+ 221   7                                                      };
+ 222   6                                              }
+ 223   5                                      }
+ 224   4                                      else if(layer==3){   //第三层
+ 225   5                                              switch(menu_num){
+ 226   6                                                      case 0:
+ 227   6                                                      {
+ 228   7                                                              break;
+ 229   7                                                      }
+ 230   6                                                      case 1:
+ 231   6                                                      {
+ 232   7                                                              if(keyvalue==0x39){
+ 233   8                                                                      layer = 2;
+ 234   8                                                                      run_menu_num = -1;
+C51 COMPILER V9.00   MAIN                                                                  07/05/2024 11:10:05 PAGE 5   
+
+ 235   8                                                                      keyvalue=0xff;
+ 236   8                                                                      motor = 0;
+ 237   8                                                                      P2 = 0x02;
+ 238   8                                                              }
+ 239   7                                                              init_motor();
+ 240   7                                                              for(i=0;i<8;i++)LED[i]=run_all[i];
+ 241   7                                                              switch(run_menu_num){
+ 242   8                                                                      case 0:{
+ 243   9                                                                              dat1 = readbyte_24c16(0);
+ 244   9                                                                              break;
+ 245   9                                                                      }
+ 246   8                                                                      case 1:{
+ 247   9                                                                              dat1 = readbyte_24c16(1);
+ 248   9                                                                              break;
+ 249   9                                                                      }
+ 250   8                                                                      case 2:{
+ 251   9                                                                              dat1 = readbyte_24c16(2);
+ 252   9                                                                              break;
+ 253   9                                                                      }
+ 254   8                                                                      case 3:{
+ 255   9                                                                              dat1 = readbyte_24c16(3);
+ 256   9                                                                              break;
+ 257   9                                                                      }
+ 258   8                                                                      case 4:{
+ 259   9                                                                              dat1 = readbyte_24c16(4);
+ 260   9                                                                              break;
+ 261   9                                                                      }
+ 262   8                                                              }
+ 263   7                                                              if((dat1/100)!=0)LED[1]=temparray[dat1/100];
+ 264   7                                                              else LED[1]=0x00;
+ 265   7                                                              LED[2]=temparray[(dat1%100)/10];
+ 266   7                                                              LED[3]=temparray[(dat1%100)%10];
+ 267   7                                                              LED[4]=0x21;//r
+ 268   7                                                              LED[5]=0x2c;//u
+ 269   7                                                              LED[6]=0x25;//n
+ 270   7                                                              break;
+ 271   7                                                      }
+ 272   6                                                      case 2:break;
+ 273   6                                                      case 3:
+ 274   6                                                      {       
+ 275   7                                                              if(flag==0){
+ 276   8                                                              //run
+ 277   8                                                                      run_menu_num=run_menu_switch(run_menu_num);
+ 278   8                                                                      if(LED[4]==0xf5){
+ 279   9                                                                              run_menu_num = run_num;
+ 280   9                                                                      }
+ 281   8                                                                      for(i=0;i<8;i++)LED[i]=run_all[i];
+ 282   8                                                                      switch(run_menu_num){
+ 283   9                                                                              case 0:{
+ 284  10                                                                                      LED[7] = 0x44;
+ 285  10                                                                                      dat1=readbyte_24c16(0);
+ 286  10                                                                                      break;
+ 287  10                                                                              }
+ 288   9                                                                              case 1:{
+ 289  10                                                                                      LED[7] = 0x79;
+ 290  10                                                                                      dat1=readbyte_24c16(1);
+ 291  10                                                                                      break;
+ 292  10                                                                              }
+ 293   9                                                                              case 2:{
+ 294  10                                                                                      LED[7] = 0x5d;
+ 295  10                                                                                      dat1=readbyte_24c16(2);
+ 296  10                                                                                      break;
+C51 COMPILER V9.00   MAIN                                                                  07/05/2024 11:10:05 PAGE 6   
+
+ 297  10                                                                              }
+ 298   9                                                                              case 3:{
+ 299  10                                                                                      LED[7] = 0xc5;
+ 300  10                                                                                      dat1=readbyte_24c16(3);
+ 301  10                                                                                      break;
+ 302  10                                                                              }
+ 303   9                                                                              case 4:{
+ 304  10                                                                                      LED[7] = 0x9d;
+ 305  10                                                                                      dat1=readbyte_24c16(4);
+ 306  10                                                                                      break;
+ 307  10                                                                              }
+ 308   9                                                                      }
+ 309   8                                                                      if((dat1/100)!=0)LED[1]=temparray[dat1/100];
+ 310   8                                                                      else LED[1]=0x00;
+ 311   8                                                                      LED[2]=temparray[(dat1%100)/10];
+ 312   8                                                                      LED[3]=temparray[(dat1%100)%10];
+ 313   8                                                                      LED[4]=0xf1;                                                            
+ 314   8                                                              }
+ 315   7                                                              else if (flag==1){                //...............................................................
+             -............
+ 316   8                                                                      pa_menu_num=pa_menu_switch(pa_menu_num);
+ 317   8                                                                      switch(pa_menu_num){
+ 318   9                                                                              case 0:dat1=readbyte_24c16(10);LED[0]=0x00;LED[1]=0x00;LED[2]=temparray[(readbyte_24c16(10)%100)/
+             -10];LED[3]=temparray[(readbyte_24c16(10)%100)%10];LED[4]=0xf1;LED[5]=0xf5;LED[6]=0x01;LED[7]=0xad;break;//b
+ 319   9                                                                              case 1:dat1=readbyte_24c16(11);LED[0]=0x00;LED[1]=0x00;LED[2]=temparray[(readbyte_24c16(11)%100)/
+             -10];LED[3]=temparray[(readbyte_24c16(11)%100)%10];LED[4]=0xf1;LED[5]=0xf5;LED[6]=0x01;LED[7]=0xb1;break;//f
+ 320   9                                                                      }
+ 321   8                                                                      //break; //..........................................................................
+ 322   8                                                              }
+ 323   7                                                              else //............................................................................................
+             -...............
+ 324   7                                                              {
+ 325   8                                                                      //pid
+ 326   8                                                                      if(keyvalue==0x3a){
+ 327   9                                                                                      Tset++;
+ 328   9                                                                              }
+ 329   8                                                                      else if(keyvalue==0x3b){
+ 330   9                                                                                      Tset--;
+ 331   9                                                                      }
+ 332   8                                                                      else if(keyvalue==0x39){
+ 333   9                                                                              layer = 2;
+ 334   9                                                                              keyvalue=0xff;
+ 335   9                                                                              
+ 336   9                                                                      }
+ 337   8                                                                      else{
+ 338   9                                                                                
+ 339   9                                                                                      delay_us(150);
+ 340   9                                                                                      writebyte_24c16((unsigned char)Tset,12);
+ 341   9                                                                                      delay_us(150);
+ 342   9                                                                      }
+ 343   8                                                                      LED[0]=0x00;LED[1]=temparray[(int)(Tset*10)/100];LED[2]=tempdparray[(int)((Tset*10)/10)%10];LED[3]
+             -=temparray[(int)(Tset*10)%10];LED[4]=0xf5;LED[5]=0x01;LED[6]=0x00;LED[7]=0xf1;//显示设置的温度
+ 344   8                                                              }
+ 345   7                                                              break;
+ 346   7                                                      }
+ 347   6                                                      case 4:break;
+ 348   6                                                      case 5:break;
+ 349   6                                              }       
+ 350   5                                      }
+ 351   4              else{                   //第四层
+ 352   5                                              if(flag==0){
+ 353   6                                                      //run
+C51 COMPILER V9.00   MAIN                                                                  07/05/2024 11:10:05 PAGE 7   
+
+ 354   6                                                      if(keyvalue==0x3a){
+ 355   7                                                              if(dat1>=0 && dat1<100){
+ 356   8                                                                      dat1++;
+ 357   8                                                                      if((dat1/100)!=0)LED[1]=temparray[dat1/100];
+ 358   8                                                                      else LED[1]=0x00;
+ 359   8                                                                      LED[2]=temparray[(dat1%100)/10];
+ 360   8                                                                      LED[3]=temparray[(dat1%100)%10];
+ 361   8                                                              }
+ 362   7                                                      }
+ 363   6                                                      else if(keyvalue==0x3b){
+ 364   7                                                              if(dat1>0 && dat1<=100){
+ 365   8                                                                      dat1--;
+ 366   8                                                                      if((dat1/100)!=0)LED[1]=temparray[dat1/100];
+ 367   8                                                                      else LED[1]=0x00;
+ 368   8                                                                      LED[2]=temparray[(dat1%100)/10];
+ 369   8                                                                      LED[3]=temparray[(dat1%100)%10];
+ 370   8                                                              }
+ 371   7                                                      }
+ 372   6                                                      else if(keyvalue==0x39){
+ 373   7                                                              layer = 3;
+ 374   7                                                              keyvalue=0xff;
+ 375   7                                                      }
+ 376   6                                                      else{
+ 377   7                                                              if(LED[4] == 0xf5){
+ 378   8                                                                      writebyte_24c16(dat1,run_num);
+ 379   8                                                                      layer = 3;
+ 380   8                                                                      keyvalue=0xff;
+ 381   8                                                              }
+ 382   7                                                      }
+ 383   6                                              }
+ 384   5                                              else if(flag==1){
+ 385   6                                                      //con
+ 386   6                                                      LED[1]=0x00;//........................................................................
+ 387   6                                                      if(keyvalue==0x3a){
+ 388   7                                                              if(dat1>=20 && dat1<40){
+ 389   8                                                                      if(dat1>=readbyte_24c16(11)&&LED[7]==0xad) //t_down小于t_up才能加        //.......................
+             -........................
+ 390   8                                                                              dat1=dat1;
+ 391   8                                                                      else
+ 392   8                                                                              dat1++;
+ 393   8                                                              }
+ 394   7                                                      }
+ 395   6                                                      else if(keyvalue==0x3b){
+ 396   7                                                              if(dat1>20 && dat1<=40){
+ 397   8                                                                      if(dat1<=readbyte_24c16(10)&&LED[7]==0xb1) //t_up大于t_down才能加        //.......................
+             -........................
+ 398   8                                                                              dat1=dat1;
+ 399   8                                                                      else
+ 400   8                                                                              dat1--;                                                         
+ 401   8                                                              }
+ 402   7                                                      }
+ 403   6                                                      else if(keyvalue==0x39){
+ 404   7                                                              layer = 3;
+ 405   7                                                              keyvalue=0xff;
+ 406   7                                                      }
+ 407   6                                                      else{
+ 408   7                                                              if(LED[4] == 0xf5){
+ 409   8                                                                      if(con_num==0){
+ 410   9                                                                              writebyte_24c16(dat1,10);
+ 411   9                                                                      }
+ 412   8                                                                      else writebyte_24c16(dat1,11);
+ 413   8                                                                      layer = 3;
+C51 COMPILER V9.00   MAIN                                                                  07/05/2024 11:10:05 PAGE 8   
+
+ 414   8                                                                      keyvalue=0xff;
+ 415   8                                                              }
+ 416   7                                                      }
+ 417   6      
+ 418   6                                              }
+ 419   5                                              LED[2]=temparray[(dat1%100)/10];
+ 420   5                                              LED[3]=temparray[(dat1%100)%10];
+ 421   5                                              LED[4] = 0xf5;
+ 422   5                                              LED[5] = 0x01;
+ 423   5                                              LED[6] = 0x00;
+ 424   5                                              //break;
+ 425   5                                      }
+ 426   4                              }
+ 427   3                      }
+ 428   2              }
+ 429   1      }
+ 430           
+ 431                  
+ 432          void timer0(void) interrupt 1{
+ 433   1              TH0 = 0xee;
+ 434   1              TL0 = 0x00;
+ 435   1              motorNow++;
+ 436   1              if(motorNow>=100){
+ 437   2                      motorNow = 0;
+ 438   2              }
+ 439   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3623    ----
+   CONSTANT SIZE    =     74    ----
+   XDATA SIZE       =     33      86
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

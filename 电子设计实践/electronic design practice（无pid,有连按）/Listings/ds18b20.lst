@@ -1,0 +1,165 @@
+C51 COMPILER V9.00   DS18B20                                                               07/06/2024 16:49:32 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE DS18B20
+OBJECT MODULE PLACED IN .\Objects\ds18b20.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE usr\ds18b20.c LARGE BROWSE INCDIR(.\usr) DEBUG OBJECTEXTEND PRINT(.\Listing
+                    -s\ds18b20.lst) OBJECT(.\Objects\ds18b20.obj)
+
+line level    source
+
+   1          #include <REG52.H>
+   2          #include <stdio.h>
+   3          #include <math.h>
+   4          #include <stdlib.h>
+   5          #include <intrins.h>
+   6          #include <global.h>
+   7          #include <hd7279.h>
+   8          #include <ds18b20.h>
+   9          #include <uart.h>
+*** WARNING C318 IN LINE 9 OF usr\ds18b20.c: can't open file 'uart.h'
+  10          #include <ee24c16.h>
+  11          
+  12          /*DS18B20ÎÂ¶È¶ÁÈ¡£¬Ö¸ÁîÄÚÈÝÒÔ¼°Êý¾ÝµÄÐ´ÈëºÍ¶ÁÈ¡Ïê¼û½â¶ÁÎÄ¼þ*/
+  13          
+  14          float temp_now=0.0; //ÎÂ¶ÈÖµ´øÐ¡Êý£¬Ê¹ÓÃfloatÐÍ
+  15          
+  16          //³õÊ¼»¯
+  17          void init_ds1820(void){
+  18   1              reset_ds1820();
+  19   1              //¼ûDS28B20Ö¸Áî±í
+  20   1              writeData_ds1820(0xCC); //ÌøÔ¾ROMÖ¸Áî
+  21   1              writeData_ds1820(0x4E); //ÏòRAMÖÐÐ´Êý¾Ý
+  22   1              writeData_ds1820(0x20); 
+  23   1              writeData_ds1820(0x00);
+  24   1              writeData_ds1820(0x7F);
+  25   1              reset_ds1820();
+  26   1      }
+  27          
+  28          //1820¸´Î»
+  29          void reset_ds1820(void){
+  30   1              unsigned char i;
+  31   1              ds1820_dq = 0;      //ds1820_dqÎª¶¨ÒåµÄÒý½ÅP1.3Òý½ÅÎªVCCÒý½Å
+  32   1              for(i=240;i>0;i--); //ÑÓÊ±£¬¼´¸øÐ¾Æ¬·¢ËÍÒ»¸öµÍµçÆ½ÐÅºÅ
+  33   1              ds1820_dq = 1;
+  34   1              for(i=240;i>0;i--);
+  35   1      }
+  36          
+  37          //1820Êý¾ÝÐ´Èë
+  38          void writeData_ds1820(unsigned char dat){
+  39   1              unsigned char i,j;
+  40   1              for(i=8;i>0;i--){
+  41   2                      ds1820_dq = 0;        //Ð´Êý¾ÝÇ°£¬±»¿ØÖÆÆ÷À­µÍµçÆ½
+  42   2                      for(j=2;j>0;j--);     //À­µÍµçÆ½ÑÓÊ±
+  43   2                      ds1820_dq = dat&0x01; //¿ªÊ¼Ð´ÈëÊý¾Ý£¬Ã¿´Î´«Èë×îµÍÎ»Êý¾Ý
+  44   2                      for(j=30;j>0;j--);    //ÑÓÊ±
+  45   2                      ds1820_dq = 1;
+  46   2                      dat>>=1;              //Êý¾ÝÓÒÒÆ£¬±ãÓÚÏÂÒ»´Î´«Êä
+  47   2              }
+  48   1      }
+  49          
+  50          //1820Êý¾Ý¶ÁÈ¡
+  51          unsigned char readData_ds1820(void){
+  52   1              unsigned char i,j,s;
+  53   1              for(i=8;i>0;i--){
+C51 COMPILER V9.00   DS18B20                                                               07/06/2024 16:49:32 PAGE 2   
+
+  54   2                      s>>=1;             //Ã¿´Î¶ÁÒ»Î»£¨×î¸ßÎ»£©£¬¶ÁÍêºó½øÐÐÓÒÒÆ
+  55   2                      ds1820_dq = 0; 
+  56   2                      for(j=2;j>0;j--);  //¶ÁÊý¾ÝÇ°£¬ÏÈÀ­µÍµçÆ½²¢ÑÓÊ±£¬±íÊ¾¶ÁÊ±¼äµÄ¿ªÊ¼
+  57   2                      ds1820_dq = 1;
+  58   2                      
+  59   2                      //¿ªÊ¼¶ÁÈëÊý¾Ý£¬´ËÊ±×ÜÏßÎª¸ßµçÆ½£¬Ôò¶Á1£¬µÍµçÆ½Ôò¶Á0
+  60   2                      for(j=4;j>0;j--);
+  61   2                      if(ds1820_dq==1) s|=0x80; //0x80¼´10000000£¬×î¸ßÎ»ÖÃ¡®1¡¯£¬ÆäËüÎ»²»±ä
+  62   2                      
+  63   2                      for(j=30;j>0;j--);
+  64   2                      ds1820_dq = 1;
+  65   2              }
+  66   1              return s;
+  67   1      }
+  68          
+  69          float show_temperature(void){
+  70   1              unsigned char temp_data,temp_data2,i;
+  71   1              unsigned short TempDec;
+  72   1              unsigned char temperature[2]; //´æ·Å¶ÁÈ¡µ½µÄÎÂ¶ÈÊý¾Ý
+  73   1              unsigned char temp[4];        //´æ·ÅÎÂ¶ÈÊýÖµ
+  74   1              unsigned char temparray[10]={0xFC,0x44,0x79,0x5D,0xC5,0x9D,0xBD,0x54,0xFD,0xDD}; //ÓÃÓÚÈ¡ÓÃµÄLEDÊý¾ÝÏÔÊ¾Ö
+             -µ
+  75   1              unsigned char tempdparray[10]={0xfe,0x46,0x7b,0x5f,0xC7,0x9f,0xBf,0x56,0xFf,0xDf}; //ÓÃÓÚLEDµÄµÚ¶þÎ»£¬¼´´
+             -øÐ¡ÊýµãµÄÊý¾ÝÏÔÊ¾Öµ
+  76   1              float T=0.0;
+  77   1              reset_ds1820();
+  78   1              writeData_ds1820(0xcc); //Ð¾Æ¬Ö¸Áî£ºÌøÔ¾ROM
+  79   1              writeData_ds1820(0x44); //Ð¾Æ¬Ö¸Áî£ºÎÂ¶È×ª»»
+  80   1              reset_ds1820();
+  81   1              writeData_ds1820(0xcc);
+  82   1              writeData_ds1820(0xbe); //Ð¾Æ¬Ö¸Áî£º´ÓRAM¶ÁÈ¡Êý¾Ý
+  83   1              for(i=0;i<2;i++){       //´Ó1820¶ÁÈ¡Êý¾Ý
+  84   2                      temperature[i]=readData_ds1820(); 
+  85   2              }
+  86   1              reset_ds1820();
+  87   1              
+  88   1              temp_data=temperature[1];
+  89   1              temp_data&=0xf0; //ºÍ1111 0000×ö»òÔËËã£¬¼´È¡¸ßËÄÎ»
+  90   1              
+  91   1              if(temp_data==0xf0){
+  92   2                      if(temperature[0]==0){
+  93   3                              temperature[0]=~temperature[0]+1;
+  94   3                              temperature[1]=~temperature[1]+1;
+  95   3                      }
+  96   2                      else{
+  97   3                              temperature[0]=~temperature[0]+1;
+  98   3                              temperature[1]=~temperature[1];
+  99   3                      }
+ 100   2              }
+ 101   1              temp_data = temperature[1]<<4; //È¡µÚ¶þ´Î¶ÁÈ¡µÄÊý¾Ý×÷Îª¸ßËÄÎ»
+ 102   1              temp_data2 = temperature[0]>>4; //È¡µÚÒ»´Î¶ÁÈ¡µÄÊý¾Ý×÷ÎªµÍËÄÎ»
+ 103   1              temp_data = temp_data|temp_data2; //½áºÏ³ÉÎª×îÖÕµÄÎÂ¶ÈÖµ
+ 104   1              
+ 105   1              //ÎÂ¶ÈÖµ×ª»»
+ 106   1              temp[0]=(temp_data%100)/10;   //10
+ 107   1              temp[1]=(temp_data%100)%10;   //1 È¡³öLEDµÄµÚ¶þÎ»£¬¼´¸öÎ»
+ 108   1              temperature[0]&=0x0f;         //È¡³öÎÂ¶ÈÖµµÄºóËÄÎ» 
+ 109   1              //DS18B20µÄ¾«¶ÈÎª0.0625¶È£¬*0.0625Ö®ºó×ª»»ËùµÃµÄÎÂ¶È¼´ÎªÊµ¼ÊÎÂ¶È
+ 110   1              TempDec = temperature[0]*625;
+ 111   1              temp[2] = TempDec/1000;       //1 È¡³öÐ¡ÊýµãºóÒ»Î»
+ 112   1              temp[3] = (TempDec%1000)/100; //10 È¡³öÐ¡ÊýµãºóµÚ¶þÎ»
+ 113   1              
+C51 COMPILER V9.00   DS18B20                                                               07/06/2024 16:49:32 PAGE 3   
+
+ 114   1              T = 10*(float)temp[0]+(float)temp[1]+0.1*(float)temp[2]+0.01*(float)temp[3]; //ÕûºÏÎÂ¶ÈÖµ
+ 115   1              if(T==85.0)return 0;
+ 116   1              if(temp_now==0){
+ 117   2                      temp_now = T;
+ 118   2              }
+ 119   1              
+ 120   1              if(abs(T-temp_now)<1){
+ 121   2                      LED[0] = 0xd1; //0xd1¼´1101 0001 
+ 122   2                      LED[1] = 0xb8; //¼´1011 1000 ½áºÏÆðÀ´£¬¼´ÔÚLEDÖÐÏÔÊ¾¡æµÄ
+ 123   2                      LED[2] = 0x00; //LED²»ÁÁ
+ 124   2                      LED[3] = 0x00;
+ 125   2                      LED[4] = temparray[temp[0]]; //ÏÔÊ¾ÎÂ¶ÈÖµ
+ 126   2                      LED[5] = tempdparray[temp[1]];
+ 127   2                      LED[6] = temparray[temp[2]];
+ 128   2                      LED[7] = temparray[temp[3]];
+ 129   2                      temp_now = T;
+ 130   2              }
+ 131   1              
+ 132   1              //if((T<40.0) || (abs(T-temp_now)<1)){}
+ 133   1              return temp_now;
+ 134   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    717    ----
+   CONSTANT SIZE    =     20    ----
+   XDATA SIZE       =      4      30
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

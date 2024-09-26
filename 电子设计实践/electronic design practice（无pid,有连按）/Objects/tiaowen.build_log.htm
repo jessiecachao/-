@@ -1,0 +1,50 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: ¦ÌVision V5.38.0.0
+Copyright (C) 2022 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: 11 Ninger, 11, LIC=IKA0P-M9J9I-3ALDP-MNHAD-BPK1M-23Z94
+ 
+Tool Versions:
+Toolchain:       PK51 Prof. Developers Kit  Version: 9.60.7.0
+Toolchain Path:  D:\keil5\soft\C51\BIN
+C Compiler:      C51.exe V9.60.7.0
+Assembler:       A51.exe V8.2.7.0
+Linker/Locator:  BL51.exe V6.22.4.0
+Library Manager: LIB51.exe V4.30.1.0
+Hex Converter:   OH51.exe V2.7.0.0
+CPU DLL:         S8051.DLL V3.125.1.0
+Dialog DLL:      DP51.DLL V2.69.0.0 
+<h2>Project:</h2>
+E:\learn\zuoye\24year_dianzishijian\tiaowen\tiaowen.uvproj
+Project File Date:  06/28/2024
+
+<h2>Output:</h2>
+Build target 'Target 1'
+assembling STARTUP.A51...
+compiling ds18b20.c...
+compiling ee24c166.c...
+compiling global.c...
+compiling hd7279.c...
+compiling main.c...
+usr\main.c(30): warning C280: 'a': unreferenced local variable
+usr\main.c(30): warning C280: 'ans': unreferenced local variable
+usr\main.c(32): warning C280: 'temp_now_int': unreferenced local variable
+compiling motor.c...
+usr\motor.c(9): warning C318: can't open file 'uart.h'
+compiling pid.c...
+usr\pid.c(8): warning C318: can't open file 'uart.h'
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?INIT_DS1820?DS18B20
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_DELAY?GLOBAL
+Program Size: data=9.0 xdata=172 code=7490
+creating hex file from ".\Objects\tiaowen"...
+".\Objects\tiaowen" - 0 Error(s), 7 Warning(s).
+Build Time Elapsed:  00:00:01
+</pre>
+</body>
+</html>

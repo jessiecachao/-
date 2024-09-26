@@ -1,0 +1,228 @@
+C51 COMPILER V9.60.7.0   HD7279                                                            07/04/2024 14:32:45 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE HD7279
+OBJECT MODULE PLACED IN .\Objects\hd7279.obj
+COMPILER INVOKED BY: D:\Keil\Keil\C51\BIN\C51.EXE usr\hd7279.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\usr) DEBUG OBJECT
+                    -EXTEND PRINT(.\Listings\hd7279.lst) TABS(2) OBJECT(.\Objects\hd7279.obj)
+
+line level    source
+
+   1          #include <REG52.H>
+   2          #include <stdio.h>
+   3          #include <math.h>
+   4          #include <stdlib.h>
+   5          #include <intrins.h>
+   6          #include <hd7279.h>
+   7          #include <global.h>
+   8          #include <ee24c16.h>
+   9           
+  10          unsigned int flag = 0;
+  11          float Tset = 28.0;
+  12           
+  13          void init_hd7279(void){
+  14   1        send_byte(HD7279_RESET);  //初始化hd7279芯片
+  15   1      }
+  16           
+  17          void send_byte(unsigned char byte){
+  18   1        unsigned char i;
+  19   1        cs = 0;
+  20   1        long_delay();
+  21   1        for(i=0;i<8;i++){
+  22   2          if(byte&0x80){
+  23   3            dat = 1;
+  24   3          }
+  25   2          else{
+  26   3            dat = 0;
+  27   3          }
+  28   2          clk = 1;
+  29   2          short_delay();
+  30   2          clk = 0;
+  31   2          short_delay();
+  32   2          byte = byte*2;
+  33   2        }
+  34   1        dat = 0;
+  35   1      }
+  36           
+  37          unsigned char receive_byte(void){
+  38   1        unsigned char i,byte;
+  39   1        dat = 1;
+  40   1        long_delay();
+  41   1        for(i=0;i<8;i++){
+  42   2          clk = 1;
+  43   2          short_delay();
+  44   2          byte = byte*2;
+  45   2          if(dat){
+  46   3            byte = byte|0x01;
+  47   3          }
+  48   2          clk = 0;
+  49   2          short_delay();
+  50   2        }
+  51   1        dat = 0;
+  52   1        return(byte);
+  53   1      }
+  54           
+C51 COMPILER V9.60.7.0   HD7279                                                            07/04/2024 14:32:45 PAGE 2   
+
+  55          unsigned char readKey(void){
+  56   1        unsigned char key;
+  57   1        //cs = 0;
+  58   1        send_byte(0x15);
+  59   1        key = receive_byte();
+  60   1        //cs = 1;
+  61   1        return(key);
+  62   1      }
+  63           
+  64          void display(){
+  65   1        unsigned char i;
+  66   1        //cs = 0;
+  67   1        for(i=0;i<8;i++){
+  68   2          write_hd7279(0x90+i,LED[i]);
+  69   2        }
+  70   1        //cs = 1;
+  71   1      }
+  72           
+  73          void write_hd7279(unsigned char position,unsigned char dat){
+  74   1        send_byte(position);
+  75   1        send_byte(dat);
+  76   1      }
+  77           
+  78          //菜单界面控制
+  79          void menu_switch(void){
+  80   1        switch(keyvalue){
+  81   2          case 0x3a:       //右上，加   
+  82   2          {
+  83   3            menu_num++;
+  84   3            menu_num = menu_num%5;
+  85   3            break;
+  86   3          }
+  87   2          case 0x3b:   //左上，减
+  88   2          {
+  89   3            menu_num=(menu_num+4)%5;
+  90   3            break;
+  91   3          }
+  92   2          case 0x39:   //左下，返回
+  93   2          {
+  94   3            layer = 1;
+  95   3            break;
+  96   3          }
+  97   2          case 0x38:   //右下，确认
+  98   2          {
+  99   3            layer = 2;
+ 100   3            keyvalue = 0xff;
+ 101   3            break;
+ 102   3          }
+ 103   2        }
+ 104   1      }
+ 105           
+ 106          //电机测试界面
+ 107          int run_menu_switch(int num){
+ 108   1        switch(keyvalue){
+ 109   2          case 0x3a:
+ 110   2          {
+ 111   3            num++;num = num%5;
+ 112   3            //num = num%10;
+ 113   3            break;
+ 114   3          }
+ 115   2          case 0x3b:
+ 116   2          {
+C51 COMPILER V9.60.7.0   HD7279                                                            07/04/2024 14:32:45 PAGE 3   
+
+ 117   3            num=(num+4)%5;
+ 118   3            //num=(num+9)%10;
+ 119   3            break;
+ 120   3          }
+ 121   2          case 0x39:
+ 122   2          {
+ 123   3            if(num!=-1){
+ 124   4              layer--;
+ 125   4              keyvalue = 0xff;
+ 126   4              run_num = num;
+ 127   4              num = -1;
+ 128   4            }
+ 129   3            else num = 0;
+ 130   3            break;
+ 131   3          }
+ 132   2          case 0x38:
+ 133   2          {
+ 134   3            if(num!=-1){
+ 135   4              layer++;
+ 136   4              keyvalue = 0xff;
+ 137   4              run_num = num;
+ 138   4              num = -1;
+ 139   4            }
+ 140   3            else num = 0;
+ 141   3            break;
+ 142   3          }
+ 143   2        }
+ 144   1        return num;
+ 145   1      }
+ 146           
+ 147          //参数界面控制                                           
+ 148          int pa_menu_switch(int num){
+ 149   1        switch(keyvalue){
+ 150   2          case 0x3a:
+ 151   2          {
+ 152   3            num++;
+ 153   3            if(layer==3)
+ 154   3              num=num%2;
+ 155   3            else if(layer==2)
+ 156   3              num = num%3;
+ 157   3            break;
+ 158   3          }
+ 159   2          case 0x3b:
+ 160   2          {
+ 161   3            if(layer==3)
+ 162   3              num=(num+1)%2;
+ 163   3            else if(layer==2)
+ 164   3              num=(num+1)%3;      
+ 165   3            break;
+ 166   3          }
+ 167   2          case 0x39:
+ 168   2          {
+ 169   3            if(num!=-1){
+ 170   4              layer--;
+ 171   4              keyvalue = 0xff;
+ 172   4              con_num = num;
+ 173   4              num = -1;
+ 174   4            }
+ 175   3            else num = 0;
+ 176   3            break;
+ 177   3          }
+ 178   2          case 0x38:
+C51 COMPILER V9.60.7.0   HD7279                                                            07/04/2024 14:32:45 PAGE 4   
+
+ 179   2          {
+ 180   3            if(num!=-1){
+ 181   4              if(layer==2){
+ 182   5                if(num==0)flag=0;
+ 183   5                else if(num==1) flag = 1;                       //...................................................
+             -.............
+ 184   5                else flag=2;
+ 185   5              }
+ 186   4              layer++;
+ 187   4              keyvalue = 0xff;
+ 188   4              con_num = num;
+ 189   4              num = -1;
+ 190   4            }
+ 191   3            else num = 0;
+ 192   3            break;
+ 193   3          }
+ 194   2        }
+ 195   1        return num;
+ 196   1      }
+ 197          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    843    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      6      10
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

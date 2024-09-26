@@ -1,0 +1,54 @@
+C51 COMPILER V9.00   PID                                                                   07/06/2024 16:49:36 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE PID
+OBJECT MODULE PLACED IN .\Objects\pid.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE usr\pid.c LARGE BROWSE INCDIR(.\usr) DEBUG OBJECTEXTEND PRINT(.\Listings\pi
+                    -d.lst) OBJECT(.\Objects\pid.obj)
+
+line level    source
+
+   1          #include <REG52.H>
+   2          #include <stdio.h>
+   3          #include <math.h>
+   4          #include <stdlib.h>
+   5          #include <intrins.h>
+   6          #include <global.h>
+   7          #include <ds18b20.h>
+   8          #include <pid.h>
+   9           
+  10          float e_bebefore=0.0,e_before=2.0,e=0.0;
+  11           
+  12          unsigned int pid_getpwm(int ui,float Tnow,float Tset,float kp,float ki,float kd){
+  13   1              //ui = 50,Tset = 28.0,kp=4.0,ki=0.33,kd=4.0
+  14   1              //ki=T/Ti,kd=Td/T
+  15   1              //kp=10,ki=0.2,kd=0
+  16   1              float A,B,C;
+  17   1              int u_delta;
+  18   1              A = kp*(1+ki+kd);
+  19   1              B = -kp*(1+2*kd);
+  20   1              C = kp*kd;
+  21   1              e_bebefore = e_before;
+  22   1              e_before = e;
+  23   1              e = Tnow-Tset;
+  24   1              //u_delta = 4*e-16*e_before;
+  25   1              u_delta = A*e+B*e_before+C*e_bebefore;
+  26   1              ui = ui+u_delta;
+  27   1              
+  28   1              if(ui>100) ui=100;
+  29   1              return ui;
+  30   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    437    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     12      34
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

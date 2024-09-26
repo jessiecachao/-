@@ -1,0 +1,173 @@
+C51 COMPILER V9.60.7.0   EE24C166                                                          07/04/2024 14:32:45 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE EE24C166
+OBJECT MODULE PLACED IN .\Objects\ee24c166.obj
+COMPILER INVOKED BY: D:\Keil\Keil\C51\BIN\C51.EXE usr\ee24c166.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\usr) DEBUG OBJE
+                    -CTEXTEND PRINT(.\Listings\ee24c166.lst) TABS(2) OBJECT(.\Objects\ee24c166.obj)
+
+line level    source
+
+   1          #include <REG52.H>
+   2          #include <stdio.h>
+   3          #include <math.h>
+   4          #include <stdlib.h>
+   5          #include <intrins.h>
+   6          #include <hd7279.h>
+   7          #include <global.h>
+   8          #include <ee24c16.h>
+   9          #include <ds18b20.h>
+  10           
+  11          void init_24c16(void){
+  12   1        sda=1;
+  13   1        scl=1;
+  14   1      }
+  15           
+  16           
+  17          void I2C_start(void){
+  18   1        
+  19   1        sda=1;
+  20   1        delay_us(5);
+  21   1        scl=1;
+  22   1        delay_us(5);
+  23   1        sda=0;
+  24   1        delay_us(5);
+  25   1      }
+  26           
+  27          void I2C_stop(void){
+  28   1        sda=0;
+  29   1        delay_us(5);
+  30   1        scl=1;
+  31   1        delay_us(5);
+  32   1        sda=1;
+  33   1        delay_us(5);
+  34   1      }
+  35           
+  36          void I2C_ack(void){
+  37   1        unsigned char i;
+  38   1        scl=1;
+  39   1        delay_us(5);
+  40   1        while((sda==1)&&(i<200))i++;
+  41   1        scl=0;
+  42   1        delay_us(5);
+  43   1      }
+  44           
+  45          void I2C_noack(){
+  46   1        sda = 1;
+  47   1        delay_us(5);
+  48   1        scl = 1;
+  49   1        delay_us(5);
+  50   1        scl = 0;
+  51   1        delay_us(5);
+  52   1      }
+  53          void writebyte_I2C(unsigned char input){
+  54   1        unsigned char i;
+C51 COMPILER V9.60.7.0   EE24C166                                                          07/04/2024 14:32:45 PAGE 2   
+
+  55   1        scl = 0;
+  56   1        for(i=0;i<8;i++){
+  57   2          if(input&0x80)sda = 1;
+  58   2          else sda = 0;
+  59   2          input = input<<1;
+  60   2          delay_us(5);
+  61   2          scl = 1;
+  62   2          delay_us(5);
+  63   2          scl = 0;
+  64   2          delay_us(5);
+  65   2        }
+  66   1        sda = 1;
+  67   1        delay_us(5);
+  68   1      }
+  69           
+  70          unsigned char readbyte_I2C(void){
+  71   1        unsigned char i,rbyte;
+  72   1        scl = 0;
+  73   1        delay_us(5);
+  74   1        sda = 1;
+  75   1        delay_us(5);
+  76   1        for(i=0;i<8;i++){
+  77   2          scl = 1;
+  78   2          delay_us(5);
+  79   2          rbyte = rbyte<<1;
+  80   2          if(sda)rbyte++;
+  81   2          scl = 0;
+  82   2          delay_us(5);
+  83   2        }
+  84   1        return rbyte;
+  85   1      }
+  86           
+  87          void writebyte_24c16(unsigned char dat,unsigned char addr){
+  88   1        init_24c16();
+  89   1        I2C_start();
+  90   1        writebyte_I2C(WriteDeviceAddress);
+  91   1        I2C_ack();
+  92   1        writebyte_I2C(addr);
+  93   1        I2C_ack();
+  94   1        writebyte_I2C(dat);
+  95   1        I2C_ack();
+  96   1        I2C_stop();
+  97   1      }
+  98           
+  99          unsigned char readbyte_24c16(unsigned char addr){
+ 100   1        unsigned char output;
+ 101   1        init_24c16();
+ 102   1        I2C_start();
+ 103   1        writebyte_I2C(WriteDeviceAddress);
+ 104   1        I2C_ack();
+ 105   1        writebyte_I2C(addr);
+ 106   1        I2C_ack();
+ 107   1        I2C_start();
+ 108   1        writebyte_I2C(ReadDeviceAddress);
+ 109   1        I2C_ack();
+ 110   1        output = readbyte_I2C();
+ 111   1        I2C_noack();
+ 112   1        I2C_stop();
+ 113   1        return output;
+ 114   1      }
+ 115           
+ 116          void save_all_data(void){
+C51 COMPILER V9.60.7.0   EE24C166                                                          07/04/2024 14:32:45 PAGE 3   
+
+ 117   1        //??μ÷ó?ò?′?
+ 118   1        delay_us(150);
+ 119   1        writebyte_24c16(20,0);
+ 120   1        delay_us(150);
+ 121   1        writebyte_24c16(40,1);
+ 122   1        delay_us(150);
+ 123   1        writebyte_24c16(60,2);
+ 124   1        delay_us(150);
+ 125   1        writebyte_24c16(80,3);
+ 126   1        delay_us(150);
+ 127   1        writebyte_24c16(100,4);
+ 128   1        delay_us(150);
+ 129   1      //  writebyte_24c16(60,5);
+ 130   1      //  delay_us(150);
+ 131   1      //  writebyte_24c16(70,6);
+ 132   1      //  delay_us(150);
+ 133   1      //  writebyte_24c16(80,7);
+ 134   1      //  delay_us(150);
+ 135   1      //  writebyte_24c16(90,8);
+ 136   1      //  delay_us(150);
+ 137   1      //  writebyte_24c16(100,9);
+ 138   1      //  delay_us(150);
+ 139   1        writebyte_24c16(23,10);//t_down
+ 140   1        delay_us(150);
+ 141   1        writebyte_24c16(32,11);//t_up
+ 142   1        delay_us(150);
+ 143   1        writebyte_24c16((unsigned char)Tset,12); //设置的恒温参数
+ 144   1        delay_us(150);
+ 145   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    512    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       9
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

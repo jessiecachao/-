@@ -1,0 +1,271 @@
+C51 COMPILER V9.00   HD7279                                                                07/06/2024 16:49:32 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE HD7279
+OBJECT MODULE PLACED IN .\Objects\hd7279.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE usr\hd7279.c LARGE BROWSE INCDIR(.\usr) DEBUG OBJECTEXTEND PRINT(.\Listings
+                    -\hd7279.lst) OBJECT(.\Objects\hd7279.obj)
+
+line level    source
+
+   1          #include <REG52.H>
+   2          #include <stdio.h>
+   3          #include <math.h>
+   4          #include <stdlib.h>
+   5          #include <intrins.h>
+   6          #include <hd7279.h>
+   7          #include <global.h>
+   8          extern unsigned char temparray[10]={0xFC,0x44,0x79,0x5D,0xC5,0x9D,0xBD,0x54,0xFD,0xDD}; //不带小数点
+   9          //驱动LED和键盘
+  10          unsigned int flag = 0;
+  11          
+  12          //7279初始化
+  13          void init_hd7279(void){
+  14   1              send_byte(HD7279_RESET);
+  15   1      }
+  16          
+  17          //发送字节
+  18          void send_byte(unsigned char byte){
+  19   1              unsigned char i;
+  20   1              cs = 0;
+  21   1              long_delay();
+  22   1              for(i=0;i<8;i++){
+  23   2                      if(byte&0x80){ //每次取最高位发送，如果最高位为1，则发送1
+  24   3                              dat = 1;
+  25   3                      }
+  26   2                      else{ //否则发送0
+  27   3                              dat = 0;
+  28   3                      }
+  29   2                      clk = 1;
+  30   2                      short_delay(); //生成一个下降沿
+  31   2                      clk = 0;
+  32   2                      short_delay();
+  33   2                      byte = byte*2; //字节左移
+  34   2              }
+  35   1              dat = 0;
+  36   1      }
+  37          
+  38          //接收字节
+  39          unsigned char receive_byte(void){
+  40   1              unsigned char i,byte;
+  41   1              dat = 1;
+  42   1              long_delay();
+  43   1              for(i=0;i<8;i++){
+  44   2                      clk = 1;
+  45   2                      short_delay();
+  46   2                      //左移一位，空出最后一位存放进新来的位dat
+  47   2                      byte = byte*2; //二进制乘2，即左移
+  48   2                      if(dat){       //根据数据口中dat的值生成byte
+  49   3                              byte = byte|0x01;
+  50   3                      }
+  51   2                      clk = 0;
+  52   2                      short_delay();
+  53   2              }
+  54   1              dat = 0;
+C51 COMPILER V9.00   HD7279                                                                07/06/2024 16:49:32 PAGE 2   
+
+  55   1              return(byte);
+  56   1      }
+  57          
+  58          
+  59          //读键值
+  60          unsigned char readKey(void){
+  61   1              unsigned char key;
+  62   1              //cs = 0;
+  63   1              send_byte(0x15); //读键值命令0x15
+  64   1              key = receive_byte();
+  65   1              //cs = 1;
+  66   1              return(key);
+  67   1      }
+  68          
+  69          //led显示
+  70          void display(){
+  71   1              unsigned char i;
+  72   1              //cs = 0;
+  73   1              for(i=0;i<8;i++){
+  74   2                      write_hd7279(0x90+i,LED[i]); //0x90控制第i个led，LED[i]控制其发亮的内容
+  75   2              }
+  76   1              //cs = 1;
+  77   1      }
+  78          
+  79          //7279写入
+  80          void write_hd7279(unsigned char position,unsigned char dat){
+  81   1              send_byte(position);
+  82   1              send_byte(dat);
+  83   1      }
+  84          
+  85          //菜单，四个按键
+  86          void menu_switch(void){
+  87   1              switch(keyvalue){ //检测键值
+  88   2                      case 0x3b:
+  89   2                      {
+  90   3                              menu_num++;              //功能选择，左上键
+  91   3                              menu_num = menu_num%5;
+  92   3                              break;
+  93   3                      }
+  94   2                      case 0x3a:
+  95   2                      {       
+  96   3                         
+  97   3                              menu_num=(menu_num+4)%5; //功能选择，右上键
+  98   3                              break;
+  99   3                      }
+ 100   2                      case 0x39:
+ 101   2                      {
+ 102   3                              layer = 1;               //返回上一层，即左下键
+ 103   3                              break;
+ 104   3                      }
+ 105   2                      case 0x38:                 //进入菜单的第二层，即右下键
+ 106   2                      {
+ 107   3                              layer = 2;
+ 108   3                              keyvalue = 0xff;
+ 109   3                              break;
+ 110   3                      }
+ 111   2              }
+ 112   1      }
+ 113          //进入run功能 电机测试
+ 114          int run_menu_switch(int num){
+ 115   1              switch(keyvalue){
+ 116   2                      case 0x3b: //调速加
+C51 COMPILER V9.00   HD7279                                                                07/06/2024 16:49:32 PAGE 3   
+
+ 117   2                      {
+ 118   3                              num++;
+ 119   3                              num = num%5;
+ 120   3                              break;
+ 121   3                      }
+ 122   2                      case 0x3a: //调速减
+ 123   2                      {
+ 124   3                              num=(num+4)%5;
+ 125   3                              break;
+ 126   3                      }
+ 127   2                      case 0x39: //返回上一层
+ 128   2                      {
+ 129   3                              if(num!=-1){
+ 130   4                                      layer--;
+ 131   4                                      keyvalue = 0xff;
+ 132   4                                      run_num = num;
+ 133   4                                      num = -1;
+ 134   4                              }
+ 135   3                              else num = 0;
+ 136   3                              break;
+ 137   3                      }
+ 138   2                      case 0x38: //进入下一层，电机运行
+ 139   2                      {
+ 140   3                              if(num!=-1){
+ 141   4                                      layer++;
+ 142   4                                      keyvalue = 0xff;
+ 143   4                                      run_num = num;
+ 144   4                                      num = -1;
+ 145   4                              }
+ 146   3                              else num = 0;
+ 147   3                              break;
+ 148   3                      }
+ 149   2              }
+ 150   1              return num;
+ 151   1      }
+ 152          
+ 153          //进入pa功能，参数设置，分为P(档位)和A(速度)设置
+ 154          int pa_menu_switch(int num){
+ 155   1              switch(keyvalue){
+ 156   2                      case 0x3b:
+ 157   2                      {
+ 158   3                              num++;
+ 159   3                              num = num%3;
+ 160   3                              break;
+ 161   3                      }
+ 162   2                      case 0x3a:
+ 163   2                      {
+ 164   3                              num=(num+1)%3;
+ 165   3                              break;
+ 166   3                      }
+ 167   2                      case 0x39: //返回上一层
+ 168   2                      {
+ 169   3                              if(num!=-1){
+ 170   4                                      layer--;
+ 171   4                                      keyvalue = 0xff;
+ 172   4                                      con_num = num;
+ 173   4                                      num = -1;
+ 174   4                              }
+ 175   3                              else num = 0;
+ 176   3                              break;
+ 177   3                      }
+ 178   2                      case 0x38:
+C51 COMPILER V9.00   HD7279                                                                07/06/2024 16:49:32 PAGE 4   
+
+ 179   2                      {
+ 180   3                              if(num!=-1){
+ 181   4                                      if(layer==2){
+ 182   5                                              if(num==0)flag=0;
+ 183   5                                              else flag = 1;
+ 184   5                                      }
+ 185   4                                      layer++;
+ 186   4                                      keyvalue = 0xff;
+ 187   4                                      con_num = num;
+ 188   4                                      num = -1;
+ 189   4                              }
+ 190   3                              else num = 0;
+ 191   3                              break;
+ 192   3                      }
+ 193   2              }
+ 194   1              return num;
+ 195   1      }
+ 196          
+ 197            
+ 198          //键盘连按
+ 199          int keyContinue(int keynum){
+ 200   1              unsigned char tempkv;
+ 201   1              unsigned int kc1=0,kc2=0;
+ 202   1              unsigned int pastep=0;   //跳变步长
+ 203   1      
+ 204   1              delay(10); //按键消抖
+ 205   1              tempkv=readKey();    //读当前键值
+ 206   1              if(tempkv==0xff){    //当前没有键被按下
+ 207   2                      keyvalue=0xff;
+ 208   2                      kc1=0;
+ 209   2                      kc2=0;
+ 210   2              }
+ 211   1              else{                 //说明当前键（tempkv）被按下
+ 212   2                      while((keyvalue==0x3a|keyvalue==0x3b)&&tempkv!=0xff){ //同时keyvalue的值也有，说明此时连按存在
+ 213   3                              delay(200);
+ 214   3              
+ 215   3                              if(keyvalue==0x3a){           //如果按下的键为加键
+ 216   4                                      kc1++;                      //kc1开始初始化
+ 217   4                                      if(kc1==5){ kc1=0; kc2++;}  //当连续按下时，值的跳变开始增大
+ 218   4                                      keynum=keynum+kc1+kc2*pastep;
+ 219   4                        }
+ 220   3                              
+ 221   3                              else if(keyvalue==0x3b){      //如果按下的键为减键
+ 222   4                                      kc1++;                      //kc1开始初始化
+ 223   4                                      if(kc1==5){ kc1=0; kc2++;}  //当连续按下时，值的跳变开始增大
+ 224   4                                      keynum=keynum-kc1-kc2*pastep;
+ 225   4                              }
+ 226   3                              
+ 227   3                              if((keynum/100)!=0)LED[1]=temparray[keynum/100]; //显示
+ 228   3                              else LED[1]=0x00;
+ 229   3                              LED[2]=temparray[(keynum%100)/10];
+ 230   3                              LED[3]=temparray[(keynum%100)%10];
+ 231   3                              display();
+ 232   3                              tempkv=readKey();                       
+ 233   3                      }
+ 234   2                      keyvalue=tempkv;
+ 235   2              }
+ 236   1              return keynum;
+ 237   1      }
+ 238          
+ 239                          
+
+C51 COMPILER V9.00   HD7279                                                                07/06/2024 16:49:32 PAGE 5   
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1179    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     12      19
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,10 @@
+".\Objects\STARTUP.obj",
+".\Objects\ds18b20.obj",
+".\Objects\ee24c166.obj",
+".\Objects\global.obj",
+".\Objects\hd7279.obj",
+".\Objects\main.obj",
+".\Objects\motor.obj",
+".\Objects\pid.obj" 
+TO ".\Objects\project" 
+PRINT(".\Listings\project.m51") RAMSIZE(256) 

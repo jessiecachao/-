@@ -1,0 +1,9 @@
+".\Objects\STARTUP.obj",
+".\Objects\ds18b20.obj",
+".\Objects\ee24c166.obj",
+".\Objects\global.obj",
+".\Objects\hd7279.obj",
+".\Objects\main.obj",
+".\Objects\motor.obj" 
+TO ".\Objects\tiaowen" 
+PRINT(".\Listings\tiaowen.m51") RAMSIZE(256) 

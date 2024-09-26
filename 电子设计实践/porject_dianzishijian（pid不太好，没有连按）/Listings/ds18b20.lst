@@ -1,0 +1,148 @@
+C51 COMPILER V9.60.7.0   DS18B20                                                           07/04/2024 14:32:45 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE DS18B20
+OBJECT MODULE PLACED IN .\Objects\ds18b20.obj
+COMPILER INVOKED BY: D:\Keil\Keil\C51\BIN\C51.EXE usr\ds18b20.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\usr) DEBUG OBJEC
+                    -TEXTEND PRINT(.\Listings\ds18b20.lst) TABS(2) OBJECT(.\Objects\ds18b20.obj)
+
+line level    source
+
+   1          #include <REG52.H>
+   2          #include <stdio.h>
+   3          #include <math.h>
+   4          #include <stdlib.h>
+   5          #include <intrins.h>
+   6          #include <global.h>
+   7          #include <hd7279.h>
+   8          #include <ds18b20.h>
+   9          #include <ee24c16.h>
+  10           
+  11          float temp_now=0.0;
+  12           
+  13          void init_ds1820(void){
+  14   1        reset_ds1820();
+  15   1        writeData_ds1820(0xCC);
+  16   1        writeData_ds1820(0x4E);
+  17   1        writeData_ds1820(0x20);
+  18   1        writeData_ds1820(0x00);
+  19   1        writeData_ds1820(0x7F);
+  20   1        reset_ds1820();
+  21   1      }
+  22           
+  23          void reset_ds1820(void){
+  24   1        unsigned char i;
+  25   1        ds1820_dq = 0;
+  26   1        for(i=240;i>0;i--);
+  27   1        ds1820_dq = 1;
+  28   1        for(i=240;i>0;i--);
+  29   1      }
+  30           
+  31          void writeData_ds1820(unsigned char dat){
+  32   1        unsigned char i,j;
+  33   1        for(i=8;i>0;i--)
+  34   1        {
+  35   2          ds1820_dq = 0;  //拉低总线
+  36   2          for(j=2;j>0;j--);
+  37   2          ds1820_dq = dat&0x01;   //发送1位
+  38   2          for(j=30;j>0;j--);
+  39   2          ds1820_dq = 1;    //释放总线
+  40   2          dat>>=1;   //准备传输下一位数据
+  41   2        }
+  42   1      }
+  43           
+  44          unsigned char readData_ds1820(void){
+  45   1        unsigned char i,j,s;
+  46   1        for(i=8;i>0;i--)
+  47   1        {
+  48   2          s>>=1;
+  49   2          ds1820_dq = 0;
+  50   2          for(j=2;j>0;j--);
+  51   2          ds1820_dq = 1;
+  52   2          for(j=4;j>0;j--);
+  53   2          if(ds1820_dq==1) s|=0x80;
+  54   2          for(j=30;j>0;j--);
+C51 COMPILER V9.60.7.0   DS18B20                                                           07/04/2024 14:32:45 PAGE 2   
+
+  55   2          ds1820_dq = 1;
+  56   2        }
+  57   1        return s;
+  58   1      }
+  59           
+  60          float show_temperature(void){
+  61   1        unsigned char temp_data,temp_data2,i;
+  62   1        unsigned short TempDec;
+  63   1        unsigned char temperature[2];
+  64   1        unsigned char temp[4];
+  65   1        float T=0.0;
+  66   1        reset_ds1820();
+  67   1        writeData_ds1820(0xcc);   //跳过ROM指令
+  68   1        writeData_ds1820(0x44);   //温度转换指令
+  69   1        reset_ds1820();
+  70   1        writeData_ds1820(0xcc);   //跳过ROM指令
+  71   1        writeData_ds1820(0xbe);   //读DS1820温度暂存器命令
+  72   1        for(i=0;i<2;i++){
+  73   2          temperature[i]=readData_ds1820();  //采集温度，先读低字节，再读高字节
+  74   2        }
+  75   1        reset_ds1820();
+  76   1        
+  77   1        temp_data=temperature[1];
+  78   1        temp_data&=0xf0;    //取高 4 位
+  79   1        if(temp_data==0xf0)//判断是正温度还是负温度读数
+  80   1        {   //负温度读数求补,取反加 1,判断低 8 位是否有进位
+  81   2          if(temperature[0]==0)
+  82   2          {//有进位,高 8 位取反加 1
+  83   3            temperature[0]=~temperature[0]+1;
+  84   3            temperature[1]=~temperature[1]+1;
+  85   3          }
+  86   2          else
+  87   2          {//没进位,高 8 位不加 1
+  88   3            temperature[0]=~temperature[0]+1;
+  89   3            temperature[1]=~temperature[1];
+  90   3          }
+  91   2        }
+  92   1        temp_data = temperature[1]<<4;
+  93   1        temp_data2 = temperature[0]>>4;
+  94   1        temp_data = temp_data|temp_data2;
+  95   1        temp[0]=(temp_data%100)/10;//10
+  96   1        temp[1]=(temp_data%100)%10;//1
+  97   1        temperature[0]&=0x0f;
+  98   1        TempDec = temperature[0]*625; //625=0.0625*10000，表示小数部分,扩大 1 万倍 ，方便显示
+  99   1        temp[2] = TempDec/1000;//1
+ 100   1        temp[3] = (TempDec%1000)/100;//10
+ 101   1        T = 10*(float)temp[0]+(float)temp[1]+0.1*(float)temp[2]+0.01*(float)temp[3];
+ 102   1        if(T==85.0)return 0;
+ 103   1        if(temp_now==0){
+ 104   2          temp_now = T;
+ 105   2        }
+ 106   1        if(abs(T-temp_now)<1){
+ 107   2          LED[0] = 0xd1;
+ 108   2          LED[1] = 0xb8;
+ 109   2          LED[2] = 0x00;
+ 110   2          LED[3] = 0x00;
+ 111   2          LED[4] = temparray[temp[0]];
+ 112   2          LED[5] = tempdparray[temp[1]];
+ 113   2          LED[6] = temparray[temp[2]];
+ 114   2          LED[7] = temparray[temp[3]];
+ 115   2          temp_now = T;
+ 116   2        }
+C51 COMPILER V9.60.7.0   DS18B20                                                           07/04/2024 14:32:45 PAGE 3   
+
+ 117   1        
+ 118   1        //if((T<40.0) || (abs(T-temp_now)<1)){}
+ 119   1        return temp_now;
+ 120   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    679    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      4      10
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
